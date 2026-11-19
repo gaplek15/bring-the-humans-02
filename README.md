@@ -312,4 +312,4 @@ with your link bound and takes part counts — and each signup is only decided o
 
 ---
 
-<sub>Written for the make.fun community. Sign up with my referral link: https://make.fun/r/d9kag417 · code `d9kag417`</sub>
+*Written for the make.fun community. Sign up with my referral link: [https://make.fun/r/d9kag417](https://make.fun/r/d9kag417) · code `d9kag417`*

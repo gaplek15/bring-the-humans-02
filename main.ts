@@ -30,25 +30,27 @@ function esc(s) {
 }
 
 function inline(s) {
-  // images first, then links, then code, bold, italic
-  s = s.replace(/!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g, (_m, alt, src) => {
-    const a = esc(alt);
-    const u = esc(src);
-    return `<img src="${u}" alt="${a}" loading="lazy">`;
+  // Escape the raw text FIRST, then build markup on the escaped text, so
+  // generated tags are never re-escaped by a later replacement.
+  s = esc(s);
+  // linked image: [![alt](src)](href)
+  s = s.replace(
+    /\[!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^&]*?")?\)\]\(([^)\s]+)(?:\s+"[^&]*?")?\)/g,
+    (_m, alt, src, href) =>
+      `<a href="${href}"><img src="${src}" alt="${alt}" loading="lazy"></a>`
+  );
+  // plain image
+  s = s.replace(/!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^&]*?")?\)/g, (_m, alt, src) => {
+    return `<img src="${src}" alt="${alt}" loading="lazy">`;
   });
-  s = s.replace(/\[([^\]]+)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g, (_m, text, href) => {
-    return `<a href="${esc(href)}">${inlineText(text)}</a>`;
+  // link (text already escaped; may hold an <img> from above, kept as-is)
+  s = s.replace(/\[([^\]]+)\]\(([^)\s]+)(?:\s+"[^&]*?")?\)/g, (_m, text, href) => {
+    return `<a href="${href}">${text}</a>`;
   });
-  s = s.replace(/`([^`]+)`/g, (_m, code) => `<code>${esc(code)}</code>`);
-  s = s.replace(/\*\*([^*]+)\*\*/g, (_m, t) => `<strong>${esc(t)}</strong>`);
-  s = s.replace(/\*([^*]+)\*/g, (_m, t) => `<em>${esc(t)}</em>`);
+  s = s.replace(/`([^`]+)`/g, (_m, code) => `<code>${code}</code>`);
+  s = s.replace(/\*\*([^*]+)\*\*/g, (_m, t) => `<strong>${t}</strong>`);
+  s = s.replace(/\*([^*]+)\*/g, (_m, t) => `<em>${t}</em>`);
   return s;
-}
-
-function inlineText(s) {
-  return esc(s)
-    .replace(/`([^`]+)`/g, (_m, code) => `<code>${esc(code)}</code>`)
-    .replace(/\*\*([^*]+)\*\*/g, (_m, t) => `<strong>${esc(t)}</strong>`);
 }
 
 function slug(s) {
@@ -100,29 +102,18 @@ function mdToHtml(md) {
       continue;
     }
 
-    // HTML comment / details blocks: pass through raw, keep details/summary
-    if (/^\s*<!--/.test(line)) {
-      i++;
-      continue;
-    }
-    if (/^<details>/.test(line.trim())) {
-      inDetails = true;
-      out.push("<details>");
-      i++;
-      continue;
-    }
-    if (/^<\/details>/.test(line.trim())) {
-      inDetails = false;
-      out.push("</details>");
-      i++;
-      continue;
-    }
-    if (inDetails && /^<summary>/.test(line.trim())) {
-      out.push(`<summary>${inline(line.trim().replace(/^<summary>|<\/summary>$/g, ""))}</summary>`);
-      i++;
-      continue;
-    }
-    if (/^<sub>/.test(line.trim()) || /^---$/.test(line.trim()) && false) {
+    // Raw HTML block lines (details/summary/sub): GitHub renders them as-is,
+    // so pass them through unchanged instead of escaping them.
+    const trimmed = line.trim();
+    if (
+      trimmed.startsWith("<details>") ||
+      trimmed.startsWith("</details>") ||
+      trimmed.startsWith("<summary>") ||
+      trimmed.startsWith("</summary>") ||
+      trimmed.startsWith("<sub>") ||
+      trimmed.startsWith("</sub>")
+    ) {
+      out.push(line);
       i++;
       continue;
     }
@@ -258,7 +249,6 @@ footer { margin-top: 3em; padding-top: 1em; border-top: 1px solid #e5e5ef; font-
 <body>
 <main>
 ${body}
-<footer>Written for the make.fun community. Sign up with the referral link above — code <code>d9kag417</code>.</footer>
 </main>
 </body>
 </html>
